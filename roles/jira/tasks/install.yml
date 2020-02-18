@@ -1,0 +1,133 @@
+---
+
+- name: install java package
+  become: yes
+  become_user: root
+  become_method: sudo
+  package:
+    name: java
+    state: present
+
+- name: install python package
+  become: yes
+  become_user: root
+  become_method: sudo
+  package:
+    name: python
+    state: present
+
+
+
+- name: include variables
+  become: yes
+  become_user: root
+  become_method: sudo
+  include_vars: "../vars/main.yml"
+  tags: jira
+
+
+
+- name: groupadd
+  become: yes
+  become_user: root
+  become_method: sudo
+  group:
+    name: "{{ jira_group }}"
+    system: true
+    state: "present"
+  tags: jira
+
+- name: useradd
+  become: yes
+  become_user: root
+  become_method: sudo
+  user:
+    name: "{{ jira_owner }}"
+    group: "{{ jira_group }}"
+    home: "{{ jira_home }}"
+    shell: "/usr/sbin/nologin"
+    system: true
+    create_home: false
+    state: "present"
+  tags: jira
+
+- name: prepare directories
+  become: yes
+  become_user: root
+  become_method: sudo
+  file:
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0755') }}"
+    state: "{{ item.state | default('directory') }}"
+  loop:
+    - { dest: "/lib/systemd/system" }
+    - { dest: "{{ jira_download.dest | dirname }}" }
+    - { dest: "{{ mysql_jdbc_download.dest | dirname }}" }
+    - { dest: "{{ postgresql_jdbc_download.dest | dirname }}" }
+    - dest: "{{ jira_catalina }}"
+      owner: "{{ jira_owner }}"
+      group: "{{ jira_group }}"
+    - dest: "{{ jira_catalina }}/bin"
+      owner: "{{ jira_owner }}"
+      group: "{{ jira_group }}"
+    - dest: "{{ jira_catalina }}/conf"
+      owner: "{{ jira_owner }}"
+      group: "{{ jira_group }}"
+    - dest: "{{ jira_home }}"
+      owner: "{{ jira_owner }}"
+      group: "{{ jira_group }}"
+  tags: jira
+
+- name: download archive
+  become: yes
+  become_user: root
+  become_method: sudo
+  get_url:
+    url: "{{ item.url }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - "{{ jira_download }}"
+    - "{{ mysql_jdbc_download }}"
+    - "{{ postgresql_jdbc_download }}"
+  register: get_url_result
+  until: get_url_result is succeeded
+  tags: jira
+
+- name: unarchive package
+  become: yes
+  become_user: root
+  become_method: sudo
+  shell: |
+    set -o pipefail
+    rm -rf {{ jira_catalina }} \
+      && mkdir -p {{ jira_catalina }}
+    cd {{ jira_catalina }}
+    TMP_DIR="`mktemp -d`" \
+      && tar -zx -C $TMP_DIR -f {{ jira_download.dest }} \
+      && cp -rfT $TMP_DIR/* . \
+      && rm -rf $TMP_DIR
+    cd {{ jira_catalina }}/lib
+    rm -rf *mysql*.jar
+    TMP_DIR="`mktemp -d`" \
+      && tar -zx -C $TMP_DIR -f {{ mysql_jdbc_download.dest }} \
+      && mv $TMP_DIR/*/*mysql*-bin.jar . \
+      && rm -rf $TMP_DIR
+    cd {{ jira_catalina }}/lib
+    rm -rf *postgresql*.jar
+    cp {{ postgresql_jdbc_download.dest }} .
+    chown -Rf {{ jira_owner }}:{{ jira_group }} {{ jira_catalina }}
+    chmod 0755 \
+      {{ jira_catalina }} \
+      {{ jira_catalina }}/bin \
+      {{ jira_catalina }}/conf
+  args:
+    executable: "/bin/bash"
+  when: get_url_result is changed
+  notify:
+    - jira | systemctl daemon-reload
+    - jira | systemctl restart
+  tags: jira
+
+

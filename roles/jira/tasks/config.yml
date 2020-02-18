@@ -1,0 +1,36 @@
+---
+- name: copy templates
+  become: yes
+  become_user: root
+  become_method: sudo
+  template:
+    dest: "{{ item.dest }}"
+    src: "{{ item.src | default('./templates' + item.dest + '.j2') }}"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ jira_templates }}"
+  notify:
+    - jira | systemctl daemon-reload
+    - jira | systemctl restart
+  tags: jira
+
+- name: Make sure files are with correct permissons
+  become: yes
+  become_user: root
+  become_method: sudo
+  file:
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0644') }}"
+    state: "{{ item.state | default('file') }}"
+  loop: "{{ jira_files }}"
+  tags: jira
+
+- name: flush handlers
+  become: yes
+  become_user: root
+  become_method: sudo
+  meta: flush_handlers
+  tags: jira

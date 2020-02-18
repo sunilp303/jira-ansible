@@ -1,0 +1,13 @@
+---
+
+- name: enable service
+  become: yes
+  become_user: root
+  become_method: sudo
+  service:
+    name: "jira"
+    state: "started"
+    enabled: true
+  changed_when: false
+  ignore_errors: true
+  tags: jira

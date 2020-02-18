@@ -1,0 +1,28 @@
+---
+
+- name: Jira | Install
+  become: yes
+  become_user: root
+  become_method: sudo
+  include: install.yml
+  tags:
+    - install
+
+- name: Jira | Config
+  become: yes
+  become_user: root
+  become_method: sudo
+  include: config.yml
+  tags:
+    - config
+
+
+
+- name: JIRA | Service
+  become: yes
+  become_user: root
+  become_method: sudo
+  include: service.yml
+  tags:
+    - service
+
