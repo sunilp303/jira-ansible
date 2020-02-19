@@ -1,6 +1,6 @@
 --- 
 - name: Install JIRA and configure DB
-  hosts: all
+  hosts: localhost
   remote_user: ec2-user
   roles: 
    - {role: jira} 
