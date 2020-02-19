@@ -93,5 +93,5 @@ jira_database_driver_class: 'com.mysql.jdbc.Driver'
 jira_database_validation_query: 'select 1'
 jira_database_validation_query_timeout: 3
 jira_database_username: 'jira'
-jira_database_password: 'jira'
+jira_database_password: 'jirapasschangeit'
 
